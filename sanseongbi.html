@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="EUC-KR">
+		<title>산성비 게임</title>
+		<style>
+			.game_main{
+				border: 3px solid #000;
+				width: 100%;
+				height: 500px;
+				position: relative;
+				overflow: hidden;
+			}
+			input#answer{
+				width: 150px;
+				height: 30px;
+			}
+			button#answer_submit{
+				height: 35px;
+			}
+			.game_management_btn{
+				width: 165px;
+				height: 50px;
+				margin: 0px 5px;
+			}
+			.background_red{
+				background-color: #ff6a6acc;
+			}
+			.background_red:hover{
+				background-color: #ad3a3acc;
+			}
+			.background_green{
+				background-color: #8ef38e;
+			}
+			.background_green:hover{
+				background-color: #69b269;
+			}
+			.background_gray{
+				background-color: #b8b8b8;
+			}
+			.background_gray:hover{
+				background-color: #777777;
+			}
+			.text_center{
+				text-align: center;
+			}
+			#popup_background{
+				position: fixed;
+			    width: 100%;
+			    height: 100%;
+			    top: 0px;
+			    left: 0px;
+			    background-color: #00000063;
+			    display: none;
+			}
+			#final_info {
+				border: 1px solid #000;
+				background: #fff;
+				width: 300px;
+				height: 300px;
+				text-align: center;
+				position: fixed;
+				left: calc(50% - 150px);
+				top: calc(50% - 150px);
+			}
+			.final_info_data {
+				margin: 38px 0px;
+			}
+		</style>
+	</head>
+	<body>
+		<h1 class="text_center">산성비</h1>
+		<div class="game_main" id="game_main">
+			
+		</div>
+		<div class="text_center" style="margin-top: 10px">
+			<span style="margin-right: 15px">
+				생명 : 
+				<span id="life">0</span>
+			</span>
+			<span style="margin-right: 15px">
+				<input id="answer" type="text" onkeyup="if(window.event.keyCode==13){typeAnswer()}"/>
+				<button id="answer_submit" onclick="typeAnswer()">확인</button>
+			</span>
+			<span>맞춘 단어 개수 :
+				<span id="answer_size">0</span> /
+				<span id="words_size">0</span>
+			</span>
+			
+		</div>
+		<div class="text_center"  style="margin-top: 10px">
+			<span style="font-weight: bold; margin-right: 15px">언어 설정 :</span>
+			<label for="kor">한글</label><input id="kor" name="lan_type" type="radio" value="kor" checked/>
+			<label for="eng">영어</label><input id="eng" name="lan_type" type="radio" value="eng"/>
+		</div>
+		<div class="text_center"  style="margin-top: 10px">
+			<button class="game_management_btn background_green" onclick="startGame()">게임시작</button>
+			<button class="game_management_btn background_gray" onclick="pauseGame()">일시정지</button>
+			<button class="game_management_btn background_red" onclick="gameQuit()">게임종료</button>
+		</div>
+		<div id="popup_background" onclick="document.getElementById('popup_background').style.display = 'none'">
+			<div id="final_info">
+				<p class="final_info_data">진행 시간 : <span id="game_time_final">시간</span></p>
+	            <p class="final_info_data">맞춘 단어 수 : <span id="answer_size_final">0</span></p>
+				<p class="final_info_data">틀린 단어 수 : <span id="wrong_size_final">0</span></p>
+				<p class="final_info_data">남은 생명 : <span id="life_final">0</span></p>
+	        </div>
+        </div>
+	</body>
+	<script>
+		//생명
+		const _life = 3;
+		//게임 총 진행 시간(초)
+		const _game_time = 60;
+		//단어 생성 속도(초)
+		const _word_spawn = 1;
+		//단어 내려오는 속도(초)
+		const _word_speed = 1;
+		//한번에 내려가는 거리(px)
+		const _word_down_size = 50;
+		//단어 목록
+		let words = {
+			kor:["피자", "만두", "라면", "칼국수", "탕수육", "갈비"],
+			eng:["pizza", "mandu", "ramyun", "Kalguksu", "Sweet and sour pork"]
+		};
+		
+		//맞춘 단어 개수
+		let answer_size = 0;
+		//현재 생명
+		let life = 0;
+		//오타 개수
+		let wrong_size = 0;
+		//현재 게임 시간(초)
+		let game_time = 0;
+		//언어
+		let lan_type = "kor";
+		//표출된 단어 수
+		let word_view_count = 0;
+		//게임 진행 플래그
+		let playing = false;
+		//일시 정지 플래그
+		let pause = false;
+		
+		/*게임 시작 전
+			-언어 설정(기본값: 한글)
+			-초기화
+				-생명 = 3
+				-맞춘 단어 개수 = 0
+				-오타 개수 = 0
+				-표출된 단어 수 = 0
+		*/
+		function initializeGame(){ //data 초기화
+			life = _life;
+			answer_size = 0;
+			wrong_size = 0;
+			game_time = 0;
+			temp = document.getElementsByName("lan_type");
+			for (let i = 0; i < temp.length; i++){
+				if(temp[i].checked) lan_type = temp[i].value;
+			}
+			word_view_count = 0;
+			let pause = false;
+			
+			htmlReset();
+		}
+		function htmlReset(){ //data 초기화 후, HTML 초기화
+			document.getElementById("life").innerHTML = life;
+			document.getElementById("words_size").innerHTML = words[lan_type].length;
+			document.getElementById("answer_size").innerHTML = answer_size;	
+		}
+		function getTime(){
+			let second = game_time;
+			if(second >= 60){
+				let minute = parseInt(second / 60);
+				second = second % 60;
+				if(minute >= 60){
+					let hour = parseInt(minute / 60);
+					minute = minute % 60;
+					return hour+"시간 "+ minute+"분 "+second+"초";
+				}
+				return minute+"분 "+second+"초";
+			}
+			return second+"초";
+		}
+		/*게임시작
+			-시간(초) 카운트 다운
+			-단어 섞기
+			-단어 한개씩 표출하기(몇 초마다 하는지, x 위치를 무작위로)
+				-표출된 단어들을 밑으로 내리기 (하강 속도)
+			-생명 차감
+				-게임 메인 영역에 단어가 맨 밑으로 내려갔을 때
+				-정답을 잘못 입력했을 때
+			-정답을 맞추면
+				-맞춘 단어 개수를 증가 시키기 -> 화면에 표시
+				-맞춘 단어 화면에서 지우기
+			-게임 종료
+				-생명이 0이 되었을 때
+				-정답을 다 맞췄을 때
+				-게임 종료 버튼이 눌렸을 때
+				-시간이 다 되었을 때
+		*/
+		let game_count_down_obj = {};
+		let word_viewer_obj = {};
+		let word_y_position_change_obj = {};
+		let word_delete_obj = {};
+		function startGame(){ //게임 시작
+			if(playing){
+				pass;
+			}else{
+				playing = true;
+				initializeGame();
+				shuffleWords();
+				
+				gameFlow();
+			}
+		}
+		function gameFlow(){
+			//시간 카운트 다운
+			//setInterval(콜백함수, 속도(단위: ms))
+			game_count_down_obj = setInterval(gameTimeAdd, 1000);
+			//게임 시간 증가 시키기
+			function gameTimeAdd(){
+				game_time ++;
+				//게임 종료 기능 호출 필요
+			}
+			
+			//지정한 시간마다 단어 표출하기
+			word_viewer_obj = setInterval(wordView, _word_spawn * 1000);
+			//단어 한개씩 표출하기
+			function wordView(){
+				if(word_view_count >= words[lan_type].length){
+					clearInterval(word_viewer_obj);
+				}else{
+					let game_main_el = document.getElementById("game_main");
+					let div_value = game_main_el.clientWidth / 10; //화면 크기 10분할(테두리 제외)
+					let random_x_index = Math.floor(Math.random() * 9); //0 ~ 9
+					let x_points = random_x_index * div_value;
+					
+					//HTML element 동적 생성
+					let span = document.createElement("span");
+					span.setAttribute("class", "word");
+					span.style.position = "absolute";
+					span.style.left = x_points + "px";
+					span.style.top = "0px";
+					span.innerHTML = words[lan_type][word_view_count++];
+					
+					/* if(word_view_count == words[lan_type].length){ //반복으로 생성
+						word_view_count = 0;
+						//shuffleWords(); //셔플 하는 동안 나오는 단어가 undefined가 됨
+					} */
+					
+					game_main_el.appendChild(span);
+				}
+				
+			}
+			//지정한 시간마다 단어 내리기
+			word_y_position_change_obj = setInterval(word_y_position_change, _word_speed * 1000);
+			function word_y_position_change(){
+				let land = document.getElementById("game_main").clientHeight;
+				let word_els = document.getElementsByClassName("word");
+				if((word_els.length == 0) && (word_view_count >= words[lan_type].length)){
+					manageGame();
+				}else{
+					let removable = [];
+					for(let i = 0; i <word_els.length; i++){
+						let temp = word_els[i].style.top;
+						let temp_value = Number(temp.replace("px", ""));
+						temp_value += _word_down_size;
+						word_els[i].style.top = temp_value + "px";
+						if(temp_value >= land) removable.push(i);
+					}
+					
+					removable.forEach(function(item, i, array){
+						word_els[i].remove();
+						lifeDecrease();
+					})
+				}
+			}
+			//바닥에 닿은 단어 처리
+			//word_delete_obj = setInterval(word_delete, 500);
+			/* function word_delete(){
+				let land = document.getElementById("game_main").clientHeight;
+				let word_els = document.getElementsByClassName("word");
+				let temp = word_els[0].style.top;
+				let temp_value = Number(temp.replace("px", ""));
+				if(temp_value + 10 >= land){ //+10은 조절용
+					document.getElementsByClassName("word")[0].remove();
+					lifeDecrease();
+				}
+			} */
+			
+		}
+		//단어 섞기
+		function shuffleWords(){
+			for(let i =0; i < words[lan_type].length; i++){
+				let value = Math.random() //value: 0 ~ 1(실수)
+				let random_index = Math.floor(value * words[lan_type].length) - 1; //0 * 5 = 0 ~ 5 = 1 * 5
+				let first_value = words[lan_type][i];
+				let random_index_value = words[lan_type][random_index];
+				words[lan_type][i] = random_index_value;
+				words[lan_type][random_index] = first_value;
+			}
+		}
+		//정답 입력
+		function typeAnswer(){
+			let input_answer = document.getElementById("answer").value;
+			document.getElementById("answer").value = "";
+			if(playing){
+				let word_els = document.getElementsByClassName("word");
+				for(let i = 0; i <word_els.length; i++){
+					if(input_answer == word_els[i].innerHTML){
+						answer_size++;
+						word_els[i].remove();
+						htmlReset();
+						return; //중복 단어는 가장 아래에 있는 것만
+					}
+				}
+				wrong_size++;
+				lifeDecrease();
+			}
+		}
+		function lifeDecrease(){
+			life--;
+			htmlReset();
+			if(life <= 0) manageGame();
+		}
+		/*게임종료
+		-단어 표출 중단 or 화면에서 전부 삭제
+			-표출된 단어 내리기 중단
+		-결과 알려주기 (맞춘 단어 개수, 오타 개수, 남은 생명)
+		*/
+		//게임 결과 화면
+		function resultGame(){
+			document.getElementById("game_time_final").innerHTML = getTime();
+			document.getElementById("answer_size_final").innerHTML = answer_size;
+			document.getElementById("wrong_size_final").innerHTML = wrong_size;
+			document.getElementById("life_final").innerHTML = life;
+		}
+		//게임 관리자
+		function manageGame(){
+			//let result = "";
+			//if(life <= 0){
+			//	result  = "패배하였습니다!\n게임 진행 시간: "+getTime()+"\n맞춘 단어 개수: "+answer_size+"\n오타 개수: "+wrong_size;
+			//}else{
+			//	result  = "승리하였습니다!\n게임 진행 시간: "+getTime()+"\n맞춘 단어 개수: "+answer_size+"\n오타 개수: "+wrong_size;
+			//}
+			//alert(result);
+			resultGame();
+			document.getElementById("popup_background").style.display = "block";
+			playing = false;
+			gameQuit();
+		}
+		//게임 종료 버튼 클릭
+		function gameQuit(){
+			clearIntervals();
+			let word_els = document.getElementsByClassName("word");
+			document.getElementById("game_main").innerHTML = "";
+			initializeGame();
+			htmlReset();
+			playing = false;
+		}
+		//인터벌 제거
+		function clearIntervals(){
+			clearInterval(game_count_down_obj);
+			clearInterval(word_viewer_obj);
+			clearInterval(word_y_position_change_obj);
+		}
+		/*일시정지
+			-단어 포출 중단
+				-표출된 단어 내리기 중단
+			-일시정지 중이라는 것을 표시
+		*/
+		function pauseGame(){
+			pause = !pause;
+			console.log(pause);
+			if(pause){
+				clearIntervals();
+				document.getElementById("game_main").style.backgroundColor = "#b8b8b8";
+			}else{
+				gameFlow();
+				document.getElementById("game_main").style.backgroundColor = "#fff";
+			}
+		}
+	</script>
+</html>
